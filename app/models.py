@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum as SQLEnum, Numeric
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from enum import Enum
@@ -38,6 +38,7 @@ class Batch(Base):
     fees_after: Mapped[Decimal | None] = mapped_column(Numeric(10,2))
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default = lambda: datetime.now(timezone.utc))
     returned_at: Mapped[datetime | None] = mapped_column(DateTime)
+    cards: Mapped[list["Card"]] = relationship(back_populates="batch")
 
 class Card(Base):
     __tablename__ = "cards"
@@ -53,6 +54,7 @@ class Card(Base):
     confidence: Mapped[int] = mapped_column(Integer)
     front_photo_key: Mapped[str | None] = mapped_column(String(1024))
     back_photo_key: Mapped[str | None] = mapped_column(String(1024))
+    batch: Mapped["Batch"] = relationship(back_populates="cards")
 
 class IssueType(Base):
     __tablename__ = "issue_types"
