@@ -46,7 +46,43 @@ class CardCreate(BaseModel):
     raw_value: Decimal
     target_grade: int
     confidence: int
+    issue_type_ids: list[int] = []
 
 class BatchDetailOut(BatchOut):
     cards: list[CardOut]
+    model_config = {"from_attributes": True}
+
+class CardUpdate(BaseModel):
+    actual_grade: int | None = None
+    graded_value: Decimal | None = None
+
+class BatchUpdate(BaseModel):
+    status: BatchStatus | None = None
+    fees_after: Decimal | None = None
+
+class CalibrationPoint(BaseModel):
+    confidence: int
+    hit_rate: int
+    category: str
+
+class HighestProfitCard(BaseModel):
+    pokemon_name: str
+    profit: Decimal
+
+class SummaryOut(BaseModel):
+    net_grading_profit: Decimal
+    cards_graded: int
+    total_batches: int
+    grade_hit_rate: int
+    highest_profit_card: HighestProfitCard | None
+
+
+
+
+class UserCreate(BaseModel):
+    email: str
+
+class UserOut(BaseModel):
+    id: str
+    email: str
     model_config = {"from_attributes": True}
