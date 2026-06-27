@@ -9,8 +9,17 @@ from app.schemas import (
     BatchDetailOut, CardUpdate, BatchUpdate, CalibrationPoint, SummaryOut, UserOut, UserCreate
 )
 from datetime import datetime, timezone, timedelta
-
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5174"],   # your frontend's port
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/issue-types", response_model=list[IssueTypeOut])
@@ -28,7 +37,7 @@ def post_batches(batch_data: BatchCreate, session: Session = Depends(get_session
     batch = Batch(
         grading_company=batch_data.grading_company,
         fees_upfront=batch_data.fees_upfront,
-        user_id="cde3b621-55b2-4cc2-bb26-abfd3116d57b",
+        user_id="9374aac3-d864-4bd8-bda2-497de048acbb",
     )
     session.add(batch)
     session.commit()
