@@ -15,7 +15,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174"],   # your frontend's port
+    allow_origins=["http://localhost:5173"],   # your frontend's port
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,7 +38,7 @@ def post_batches(batch_data: BatchCreate, session: Session = Depends(get_session
         name = batch_data.name,
         grading_company=batch_data.grading_company,
         fees_upfront=batch_data.fees_upfront,
-        user_id="9374aac3-d864-4bd8-bda2-497de048acbb",
+        user_id="0799c44d-8b92-4b4f-b7e1-61e30b3108e2",
     )
     session.add(batch)
     session.commit()

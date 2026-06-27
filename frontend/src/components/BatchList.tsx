@@ -25,7 +25,7 @@ function BatchList() {
     <div className="flex flex-col gap-3">
       {batches.map(batch => (
         <div
-          key={batch.name}
+          key={batch.id}
           className="bg-white border border-gray-200 rounded-lg p-4 shadow flex items-center gap-6 cursor-pointer hover:border-[#e3350d]"
         >
           {/* Company badge */}
@@ -35,7 +35,7 @@ function BatchList() {
 
           {/* Name + date subtitle — flex-1 pushes the columns to the right */}
           <div className="flex-1 min-w-0">
-            <div className="font-semibold truncate">{batch.id}</div>
+            <div className="font-semibold truncate">{batch.name}</div>
             <div className="text-xs text-gray-400">
               {new Date(batch.submitted_at).toLocaleDateString("en-US", {
                 month: "short",
