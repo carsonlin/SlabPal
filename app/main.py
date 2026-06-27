@@ -35,6 +35,7 @@ def get_batches(session: Session = Depends(get_session)):
 @app.post("/batches", response_model=BatchOut)
 def post_batches(batch_data: BatchCreate, session: Session = Depends(get_session)):
     batch = Batch(
+        name = batch_data.name,
         grading_company=batch_data.grading_company,
         fees_upfront=batch_data.fees_upfront,
         user_id="9374aac3-d864-4bd8-bda2-497de048acbb",

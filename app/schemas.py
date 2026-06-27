@@ -13,6 +13,7 @@ class IssueTypeOut(BaseModel):
 class BatchOut(BaseModel):
     id: str
     user_id: str
+    name: str
     grading_company: GradingCompany
     status: BatchStatus
     fees_upfront: Decimal
@@ -23,6 +24,7 @@ class BatchOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class BatchCreate(BaseModel):
+    name: str
     grading_company: GradingCompany
     fees_upfront: Decimal
 

@@ -33,6 +33,7 @@ class Batch(Base):
 
     id: Mapped[str] = mapped_column(String(36), default=lambda: str(uuid4()), primary_key=True)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"))
+    name: Mapped[str] = mapped_column(String(255))
     grading_company: Mapped[GradingCompany] = mapped_column(SQLEnum(GradingCompany))
     status: Mapped[BatchStatus] = mapped_column(SQLEnum(BatchStatus), default=BatchStatus.SUBMITTED)
     fees_upfront: Mapped[Decimal] = mapped_column(Numeric(10, 2))

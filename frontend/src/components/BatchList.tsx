@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 interface Batch {
   id: string
   user_id: string
+  name: string
   grading_company: string
   status: string
   fees_upfront: string
@@ -24,7 +25,7 @@ function BatchList() {
     <div className="flex flex-col gap-3">
       {batches.map(batch => (
         <div
-          key={batch.id}
+          key={batch.name}
           className="bg-white border border-gray-200 rounded-lg p-4 shadow flex items-center gap-6 cursor-pointer hover:border-[#e3350d]"
         >
           {/* Company badge */}
