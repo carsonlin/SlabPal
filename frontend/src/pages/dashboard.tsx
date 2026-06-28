@@ -1,7 +1,39 @@
 import OverviewCard from "../components/OverviewCard"
 import BatchList from "../components/BatchList"
+import { useState, useEffect } from "react"
+
+interface HighestProfitCard {
+  pokemon_name: string
+  profit: number
+}
+
+interface SummaryOut {
+  net_grading_profit: number
+  cards_graded: number
+  total_batches: number
+  grade_hit_rate: number
+  highest_profit_card: HighestProfitCard | null
+}
 
 export default function Dashboard() {
+  const [summary, setSummary] = useState<SummaryOut>({
+    net_grading_profit: 0,
+    cards_graded: 0,
+    total_batches: 0,
+    grade_hit_rate: 0,
+    highest_profit_card: null,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("http://localhost:8000/analytics/summary")
+      .then(res => res.json())
+      .then(data => {
+        setSummary(data)
+        setLoading(false)
+      })
+  }, [])
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -15,57 +47,59 @@ export default function Dashboard() {
       </aside>
 
       {/* Main area */}
-      <main className="flex-1 p-9 py-7 bg-gray-100">        
+      <main className="flex-1 p-9 py-7 bg-gray-100">
         <div className="flex items-center justify-between pb-6 mb-8 border-b border-gray-200 -mx-9 px-9">
-            {/* Left: breadcrumb + title */}
-            <div>
-                <div className="text-sm text-gray-400">Overview</div>
-                <div className="text-2xl font-bold">Welcome back, Alex</div>
-            </div>
+          {/* Left: breadcrumb + title */}
+          <div>
+            <div className="text-sm text-gray-400">Overview</div>
+            <div className="text-2xl font-bold">Welcome back, Alex</div>
+          </div>
 
-            {/* Right: filter toggle + avatar */}
-            <div className="flex items-center gap-4">
-                {/* Pill toggle — the 3 filter buttons */}
-                <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <button className="px-3 py-1.5 text-sm bg-[#e3350d] text-white">All time</button>
-                    <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">This year</button>
-                    <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">90 days</button>
-                </div>
-
-                {/* Avatar */}
-                <div className="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm cursor-pointer">AL</div>
+          {/* Right: filter toggle + avatar */}
+          <div className="flex items-center gap-4">
+            <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <button className="px-3 py-1.5 text-sm bg-[#e3350d] text-white">All time</button>
+              <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">This year</button>
+              <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">90 days</button>
             </div>
+            <div className="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm cursor-pointer">AL</div>
+          </div>
         </div>
 
         {/* Stat row */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <OverviewCard
             label="Net grading profit"
-            value="+$2,418"
+            value={`${summary.net_grading_profit >= 0 ? "+" : "-"}$${Math.abs(summary.net_grading_profit)}`}
             accent="bg-red-600"
-            subtitle="value added, after fees"
-            tone="positive"
+            subtitle={summary.net_grading_profit >= 0 ? "value added, after fees" : "value lost, after fees"}
+            tone={summary.net_grading_profit >= 0 ? "positive" : "negative"}
+            colorValue={true}
+            loading={loading}
           />
           <OverviewCard
             label="Cards graded"
-            value="147"
+            value={String(summary.cards_graded)}
             accent="bg-yellow-400"
-            subtitle="across 18 batches"
+            subtitle={"across " + String(summary.total_batches) + " batches"}
             tone="neutral"
+            loading={loading}
           />
           <OverviewCard
             label="Grade hit rate"
-            value="68%"
+            value={String(summary.grade_hit_rate) + "%"}
             accent="bg-green-500"
-            subtitle="6% vs last quarter"
-            tone="positive"
+            subtitle={""}
+            tone="neutral"
+            loading={loading}
           />
           <OverviewCard
-            label="Best card"
-            value="Mega lopunny #199"
+            label="Your Grail Card"
+            value={summary.highest_profit_card?.pokemon_name ?? "---"}
             accent="bg-blue-500"
-            subtitle="Profit +$612"
+            subtitle={summary.highest_profit_card ? `$${summary.highest_profit_card.profit}` : "Make your first profits with our app!"}
             tone="positive"
+            loading={loading}
           />
         </div>
 

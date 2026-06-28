@@ -20,7 +20,8 @@ class BatchOut(BaseModel):
     fees_after: Decimal | None
     submitted_at: datetime
     returned_at: datetime | None
-
+    card_count: int = 0
+    net_profit: Decimal | None = None
     model_config = {"from_attributes": True}
 
 class BatchCreate(BaseModel):

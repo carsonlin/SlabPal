@@ -29,7 +29,36 @@ def get_issue_types(session: Session = Depends(get_session)):
 
 @app.get("/batches", response_model=list[BatchOut])
 def get_batches(session: Session = Depends(get_session)):
-    return session.query(Batch).all()
+    results = (
+        session.query(
+            Batch,
+            func.count(Card.id).label("card_count"),
+            func.sum(
+                case(
+                    (Card.graded_value.isnot(None), Card.graded_value - Card.raw_value),
+                    else_=0,
+                )
+            ).label("value_added"),
+            func.count(Card.graded_value).label("graded_count"),
+        )
+        .outerjoin(Card, Card.batch_id == Batch.id)
+        .group_by(Batch.id)
+        .all()
+    )
+
+    batches_out = []
+    for batch, card_count, value_added, graded_count in results:
+        if graded_count > 0:
+            net_profit = (value_added or 0) - (batch.fees_upfront + (batch.fees_after or 0))
+        else:
+            net_profit = None
+
+        batch.card_count = card_count
+        batch.net_profit = net_profit
+        batches_out.append(batch)
+
+    return batches_out
+
 
 
 @app.post("/batches", response_model=BatchOut)
@@ -216,7 +245,7 @@ def get_summary(period: str = "all", session: Session = Depends(get_session)):
     best_card = (
         session.query(Card)
         .join(Batch, Card.batch_id == Batch.id)
-        .filter(Card.graded_value.isnot(None), Batch.submitted_at >= cutoff)
+        .filter(Card.graded_value.isnot(None), Batch.submitted_at >= cutoff, (Card.graded_value - Card.raw_value) >=0)
         .order_by((Card.graded_value - Card.raw_value).desc())
         .first()
     )
