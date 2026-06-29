@@ -97,7 +97,7 @@ export default function Dashboard() {
             label="Your Grail Card"
             value={summary.highest_profit_card?.pokemon_name ?? "---"}
             accent="bg-blue-500"
-            subtitle={summary.highest_profit_card ? `$${summary.highest_profit_card.profit}` : "Make your first profits with our app!"}
+            subtitle={summary.highest_profit_card ? `You made $${summary.highest_profit_card.profit} with this card!` : "Make your first profits with our app!"}
             tone="positive"
             loading={loading}
           />

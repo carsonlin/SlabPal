@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from decimal import Decimal
 from datetime import datetime
 from app.models import GradingCompany, BatchStatus
@@ -25,9 +25,10 @@ class BatchOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class BatchCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=255)
     grading_company: GradingCompany
-    fees_upfront: Decimal
+    fees_upfront: Decimal = Field(ge=0, le=99999999.99)
+
 
 class CardOut(BaseModel):
     id: str
@@ -44,11 +45,11 @@ class CardOut(BaseModel):
     model_config = {"from_attributes": True}
 
 class CardCreate(BaseModel):
-    pokemon_name: str
-    set_string: str
-    raw_value: Decimal
-    target_grade: int
-    confidence: int
+    pokemon_name: str = Field(min_length=1, max_length=255)
+    set_string: str = Field(min_length=1, max_length=255)
+    raw_value: Decimal = Field(ge=0, le=99999999.99)
+    target_grade: int = Field(ge=1, le=10)
+    confidence: int = Field(ge=1, le=10)
     issue_type_ids: list[int] = []
 
 class BatchDetailOut(BatchOut):
@@ -56,12 +57,12 @@ class BatchDetailOut(BatchOut):
     model_config = {"from_attributes": True}
 
 class CardUpdate(BaseModel):
-    actual_grade: int | None = None
-    graded_value: Decimal | None = None
+    actual_grade: int | None = Field(default=None, ge=1, le=10)
+    graded_value: Decimal | None = Field(default=None, ge=0, le=99999999.99)
 
 class BatchUpdate(BaseModel):
     status: BatchStatus | None = None
-    fees_after: Decimal | None = None
+    fees_after: Decimal | None = Field(default=None, ge=0, le=99999999.99)
 
 class CalibrationPoint(BaseModel):
     confidence: int
