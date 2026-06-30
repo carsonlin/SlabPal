@@ -21,7 +21,7 @@ class BatchOut(BaseModel):
     submitted_at: datetime
     returned_at: datetime | None
     card_count: int = 0
-    net_profit: Decimal | None = None
+    net_profit: Decimal
     model_config = {"from_attributes": True}
 
 class BatchCreate(BaseModel):

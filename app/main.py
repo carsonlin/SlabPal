@@ -28,8 +28,8 @@ def get_issue_types(session: Session = Depends(get_session)):
 
 
 @app.get("/batches", response_model=list[BatchOut])
-def get_batches(session: Session = Depends(get_session)):
-    results = (
+def get_batches(limit: int | None = None, session: Session = Depends(get_session)):
+    query = (
         session.query(
             Batch,
             func.count(Card.id).label("card_count"),
@@ -43,16 +43,16 @@ def get_batches(session: Session = Depends(get_session)):
         )
         .outerjoin(Card, Card.batch_id == Batch.id)
         .group_by(Batch.id)
-        .all()
+        .order_by(Batch.submitted_at.desc())
     )
+
+    if limit:
+        query = query.limit(limit)
+    results = query.all()
 
     batches_out = []
     for batch, card_count, value_added, graded_count in results:
-        if graded_count > 0:
-            net_profit = (value_added or 0) - (batch.fees_upfront + (batch.fees_after or 0))
-        else:
-            net_profit = None
-
+        net_profit = (value_added or 0) - (batch.fees_upfront + (batch.fees_after or 0))
         batch.card_count = card_count
         batch.net_profit = net_profit
         batches_out.append(batch)
@@ -274,3 +274,44 @@ def create_user(user_data: UserCreate, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(user)
     return user
+
+
+from sqlalchemy import func
+
+@app.get("/analytics/profit-over-time")
+def profit_over_time(session: Session = Depends(get_session)):
+    # value added per month from graded cards
+    value_rows = (
+        session.query(
+            func.strftime("%Y-%m", Batch.submitted_at).label("month"),
+            func.sum(
+                case((Card.graded_value.isnot(None), Card.graded_value - Card.raw_value), else_=0)
+            ).label("value_added"),
+        )
+        .join(Card, Card.batch_id == Batch.id)
+        .group_by(func.strftime("%Y-%m", Batch.submitted_at))
+    )
+
+    # fees per month from ALL batches
+    fee_rows = (
+        session.query(
+            func.strftime("%Y-%m", Batch.submitted_at).label("month"),
+            func.sum(Batch.fees_upfront + func.coalesce(Batch.fees_after, 0)).label("fees"),
+        )
+        .group_by(func.strftime("%Y-%m", Batch.submitted_at))
+    )
+
+    value_by_month = {m: float(v or 0) for m, v in value_rows.all()}
+    fees_by_month = {m: float(f or 0) for m, f in fee_rows.all()}
+
+    months = sorted(set(value_by_month) | set(fees_by_month))
+
+    # accumulate a running total
+    running = 0.0
+    result = []
+    for m in months:
+        monthly = value_by_month.get(m, 0) - fees_by_month.get(m, 0)
+        running += monthly                       # ← add each month to the running total
+        result.append({"month": m, "profit": round(running, 2)})
+
+    return result

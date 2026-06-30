@@ -24,91 +24,106 @@ export default function Dashboard() {
     highest_profit_card: null,
   })
   const [loading, setLoading] = useState(true)
+  const [period, setPeriod] = useState("all")
 
   useEffect(() => {
-    fetch("http://localhost:8000/analytics/summary")
+    setLoading(true)
+    fetch(`http://localhost:8000/analytics/summary?period=${period}`)
       .then(res => res.json())
       .then(data => {
         setSummary(data)
         setLoading(false)
       })
-  }, [])
+  }, [period])
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-64 bg-[#e3350d] text-white p-4">
-        <h2 className="text-xl font-bold mb-6">SlabPal</h2>
-        <nav className="flex flex-col gap-2">
-          <a className="hover:text-yellow-400 cursor-pointer">Dashboard</a>
-          <a className="hover:text-yellow-400 cursor-pointer">Batches</a>
-          <a className="hover:text-yellow-400 cursor-pointer">Analytics</a>
-        </nav>
-      </aside>
-
-      {/* Main area */}
-      <main className="flex-1 p-9 py-7 bg-gray-100">
-        <div className="flex items-center justify-between pb-6 mb-8 border-b border-gray-200 -mx-9 px-9">
-          {/* Left: breadcrumb + title */}
-          <div>
-            <div className="text-sm text-gray-400">Overview</div>
-            <div className="text-2xl font-bold">Welcome back, Alex</div>
-          </div>
-
-          {/* Right: filter toggle + avatar */}
-          <div className="flex items-center gap-4">
-            <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <button className="px-3 py-1.5 text-sm bg-[#e3350d] text-white">All time</button>
-              <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">This year</button>
-              <button className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50">90 days</button>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm cursor-pointer">AL</div>
-          </div>
-        </div>
-
-        {/* Stat row */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <OverviewCard
-            label="Net grading profit"
-            value={`${summary.net_grading_profit >= 0 ? "+" : "-"}$${Math.abs(summary.net_grading_profit)}`}
-            accent="bg-red-600"
-            subtitle={summary.net_grading_profit >= 0 ? "value added, after fees" : "value lost, after fees"}
-            tone={summary.net_grading_profit >= 0 ? "positive" : "negative"}
-            colorValue={true}
-            loading={loading}
-          />
-          <OverviewCard
-            label="Cards graded"
-            value={String(summary.cards_graded)}
-            accent="bg-yellow-400"
-            subtitle={"across " + String(summary.total_batches) + " batches"}
-            tone="neutral"
-            loading={loading}
-          />
-          <OverviewCard
-            label="Grade hit rate"
-            value={String(summary.grade_hit_rate) + "%"}
-            accent="bg-green-500"
-            subtitle={""}
-            tone="neutral"
-            loading={loading}
-          />
-          <OverviewCard
-            label="Your Grail Card"
-            value={summary.highest_profit_card?.pokemon_name ?? "---"}
-            accent="bg-blue-500"
-            subtitle={summary.highest_profit_card ? `You made $${summary.highest_profit_card.profit} with this card!` : "Make your first profits with our app!"}
-            tone="positive"
-            loading={loading}
-          />
-        </div>
-
-        {/* Batch list */}
+    <div className="animate-fade-in">
+      {/* Header bar */}
+      <div className="flex items-center justify-between pb-6 mb-8 border-b border-gray-200 -mx-9 px-9">
         <div>
-          <h2 className="text-xs text-gray-500 font-bold mb-4">RECENT BATCHES</h2>
-          <BatchList />
+          <div className="text-sm text-gray-400">Overview</div>
+          <div className="text-2xl font-bold">Welcome back, Alex</div>
         </div>
-      </main>
+
+        <div className="flex items-center gap-4">
+          <div className="flex bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setPeriod("all")}
+              className={`px-3 py-1.5 text-sm whitespace-nowrap ${
+                period === "all" ? "bg-[#e3350d] text-white" : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              All time
+            </button>
+            <button
+              onClick={() => setPeriod("year")}
+              className={`px-3 py-1.5 text-sm whitespace-nowrap ${
+                period === "year" ? "bg-[#e3350d] text-white" : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              This year
+            </button>
+            <button
+              onClick={() => setPeriod("90d")}
+              className={`px-3 py-1.5 text-sm whitespace-nowrap ${
+                period === "90d" ? "bg-[#e3350d] text-white" : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              90 days
+            </button>
+          </div>
+          <div className="w-9 h-9 rounded-full bg-red-100 text-red-600 flex items-center justify-center font-bold text-sm cursor-pointer">
+            AL
+          </div>
+        </div>
+      </div>
+
+      {/* Stat row */}
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <OverviewCard
+          label="Net grading profit"
+          value={`${summary.net_grading_profit >= 0 ? "+" : "-"}$${Math.abs(summary.net_grading_profit)}`}
+          accent="bg-red-600"
+          subtitle={summary.net_grading_profit >= 0 ? "value added, after fees" : "value lost, after fees"}
+          tone={summary.net_grading_profit >= 0 ? "positive" : "negative"}
+          colorValue={true}
+          loading={loading}
+        />
+        <OverviewCard
+          label="Cards graded"
+          value={String(summary.cards_graded)}
+          accent="bg-yellow-400"
+          subtitle={"across " + String(summary.total_batches) + " batches"}
+          tone="neutral"
+          loading={loading}
+        />
+        <OverviewCard
+          label="Grade hit rate"
+          value={String(summary.grade_hit_rate) + "%"}
+          accent="bg-green-500"
+          subtitle={period === "all"? "from all submissions" : period == "year"? "in the past year" : "in the past 90 days"}
+          tone="neutral"
+          loading={loading}
+        />
+        <OverviewCard
+          label="Your Grail Card"
+          value={summary.highest_profit_card?.pokemon_name ?? "---"}
+          accent="bg-blue-500"
+          subtitle={
+            summary.highest_profit_card
+              ? `$${summary.highest_profit_card.profit}`
+              : "Make your first profits with our app!"
+          }
+          tone={summary.highest_profit_card ? "positive" : "neutral"}
+          loading={loading}
+        />
+      </div>
+
+      {/* Recent batches */}
+      <div>
+        <h2 className="text-xs text-gray-500 font-bold mb-4">RECENT BATCHES</h2>
+        <BatchList limit={6} />
+      </div>
     </div>
   )
 }

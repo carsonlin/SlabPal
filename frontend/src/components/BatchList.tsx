@@ -11,17 +11,47 @@ interface Batch {
   submitted_at: string
   returned_at: string | null
   card_count: number
-  net_profit: string | null
+  net_profit: string
 }
 
-function BatchList() {
+function BatchList({ limit }: { limit?: number }) {
   const [batches, setBatches] = useState<Batch[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch("http://localhost:8000/batches")
+    const url = limit
+      ? `http://localhost:8000/batches?limit=${limit}`
+      : "http://localhost:8000/batches"
+    fetch(url)
       .then(res => res.json())
-      .then(data => setBatches(data))
-  }, [])
+      .then(data => {
+        setBatches(data)
+        setLoading(false)
+      })
+  }, [limit])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-3">
+        {Array.from({ length: limit ?? 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-white border border-gray-200 rounded-lg p-4 shadow-xs flex items-center gap-6"
+          >
+            <div className="w-11 h-11 rounded-lg bg-gray-200 animate-pulse flex-shrink-0"></div>
+            <div className="flex-1">
+              <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-2"></div>
+              <div className="h-3 w-20 bg-gray-200 rounded animate-pulse"></div>
+            </div>
+            <div className="h-6 w-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-6 w-12 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-6 w-16 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-6 w-20 bg-gray-200 rounded-full animate-pulse"></div>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -33,11 +63,11 @@ function BatchList() {
           : ""
 
         const companyColor =
-          batch.grading_company === "PSA" ? "bg-[#c0202d]"   
-          : batch.grading_company === "CGC" ? "bg-[#1f6dbf]"    
-          : batch.grading_company === "BGS" ? "bg-black" 
-          : batch.grading_company === "SGC" ? "bg-gray-700"   
-          : batch.grading_company === "TAG" ? "bg-[#2b2c6e]"  
+          batch.grading_company === "PSA" ? "bg-[#c0202d]"
+          : batch.grading_company === "CGC" ? "bg-[#1f6dbf]"
+          : batch.grading_company === "BGS" ? "bg-black"
+          : batch.grading_company === "SGC" ? "bg-gray-700"
+          : batch.grading_company === "TAG" ? "bg-[#2b2c6e]"
           : "bg-gray-500"
 
         return (
