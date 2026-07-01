@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 from decimal import Decimal
 from datetime import datetime
 from app.models import GradingCompany, BatchStatus
+from typing import Annotated
+
 
 class IssueTypeOut(BaseModel):
     id: int

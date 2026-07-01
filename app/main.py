@@ -115,6 +115,18 @@ def get_batch(id: str, session: Session = Depends(get_session)):
 
 @app.post("/batches/{id}/cards", response_model=CardOut)
 def create_card(id: str, card_data: CardCreate, session: Session = Depends(get_session)):
+    # verify the batch exists
+    batch = session.get(Batch, id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # validate the submitted issue ids actually exist
+    if card_data.issue_type_ids:
+        valid_ids = {row.id for row in session.query(IssueType.id).all()}
+        invalid = [i for i in card_data.issue_type_ids if i not in valid_ids]
+        if invalid:
+            raise HTTPException(status_code=422, detail=f"Invalid issue type ids: {invalid}")
+
     card = Card(
         pokemon_name=card_data.pokemon_name,
         set_string=card_data.set_string,
@@ -125,8 +137,11 @@ def create_card(id: str, card_data: CardCreate, session: Session = Depends(get_s
     )
     session.add(card)
     session.flush()
-    for issue_id in card_data.issue_type_ids:
+
+    # dedupe issue ids so a repeated id doesn't hit the primary-key conflict
+    for issue_id in set(card_data.issue_type_ids):
         session.add(CardIssue(card_id=card.id, issue_type_id=issue_id))
+
     session.commit()
     session.refresh(card)
     return card
@@ -315,3 +330,33 @@ def profit_over_time(session: Session = Depends(get_session)):
         result.append({"month": m, "profit": round(running, 2)})
 
     return result
+
+
+@app.get("/analytics/issue-outcomes")
+def issue_outcomes(session: Session = Depends(get_session)):
+    results = (
+        session.query(
+            IssueType.label.label("issue_name"),
+            func.count(CardIssue.card_id).label("flag_count"),
+            func.avg(Card.actual_grade).label("avg_grade"),
+            func.sum(
+                case((Card.actual_grade >= Card.target_grade, 1), else_=0)
+            ).label("hits"),
+        )
+        .outerjoin(CardIssue, CardIssue.issue_type_id == IssueType.id)
+        .outerjoin(Card, (Card.id == CardIssue.card_id) & (Card.actual_grade.isnot(None)))
+        .group_by(IssueType.id, IssueType.label)
+        .order_by(IssueType.id)
+        .all()
+    )
+
+    out = []
+    for issue_name, flag_count, avg_grade, hits in results:
+        hit_rate = round((hits / flag_count) * 100) if flag_count and flag_count > 0 else None
+        out.append({
+            "issue_name": issue_name,
+            "flag_count": flag_count or 0,
+            "avg_grade": round(float(avg_grade), 1) if avg_grade is not None else None,
+            "hit_rate": hit_rate,
+        })
+    return out

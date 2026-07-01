@@ -15,39 +15,77 @@ interface ProfitPoint {
   profit: number
 }
 
+interface IssueOutcome {
+  issue_name: string
+  flag_count: number
+  avg_grade: number | null
+  hit_rate: number
+}
+
 function categoryColor(category: string) {
   if (category === "under") return "#179b47"
   if (category === "over") return "#d82c2c"
   return "#1a5da5"
 }
 
-function buildInsights(points: CalibrationPoint[]) {
+// color the accuracy bar by hit rate (matches mockup: green/blue/red)
+function barColor(hitRate: number) {
+  if (hitRate >= 65) return "#179b47"
+  if (hitRate >= 50) return "#1a5da5"
+  return "#d82c2c"
+}
+
+function buildInsights(points: CalibrationPoint[], issues: IssueOutcome[]) {
   const insights: { type: "good" | "warn" | "neutral"; title: string; body: string }[] = []
-  if (points.length === 0) return insights
+  if (points.length === 0 && issues.length === 0) return insights
 
-  const best = [...points].sort((a, b) => b.hit_rate - a.hit_rate)[0]
-  insights.push({
-    type: "good",
-    title: `Confidence ${best.confidence} is your strongest read`,
-    body: `At confidence ${best.confidence} you hit your target ${best.hit_rate}% of the time — your most reliable zone.`,
-  })
-
-  const over = points.filter(p => p.category === "over").sort((a, b) => b.confidence - a.confidence)[0]
-  if (over) {
+  // --- Calibration-based insights ---
+  if (points.length > 0) {
+    const best = [...points].sort((a, b) => b.hit_rate - a.hit_rate)[0]
     insights.push({
-      type: "warn",
-      title: `You're overconfident at ${over.confidence}`,
-      body: `Your confidence-${over.confidence} calls only landed ${over.hit_rate}% of the time — lower than the confidence implies.`,
+      type: "good",
+      title: `Confidence ${best.confidence} is your strongest read`,
+      body: `At confidence ${best.confidence} you hit your target ${best.hit_rate}% of the time — your most reliable zone.`,
     })
+
+    const over = points.filter(p => p.category === "over").sort((a, b) => b.confidence - a.confidence)[0]
+    if (over) {
+      insights.push({
+        type: "warn",
+        title: `You're overconfident at ${over.confidence}`,
+        body: `Your confidence-${over.confidence} calls only landed ${over.hit_rate}% of the time — lower than the confidence implies.`,
+      })
+    }
+
+    const under = points.filter(p => p.category === "under").sort((a, b) => a.confidence - b.confidence)[0]
+    if (under) {
+      insights.push({
+        type: "neutral",
+        title: `You sell yourself short at ${under.confidence}`,
+        body: `Cards you rated confidence ${under.confidence} actually hit ${under.hit_rate}% of the time — better than you predicted.`,
+      })
+    }
   }
 
-  const under = points.filter(p => p.category === "under").sort((a, b) => a.confidence - b.confidence)[0]
-  if (under) {
+  // --- Issue-based insights ---
+  if (issues.length > 0) {
+    const sortedByHit = [...issues].sort((a, b) => b.hit_rate - a.hit_rate)
+    const strongestIssue = sortedByHit[0]
+    const weakestIssue = sortedByHit[sortedByHit.length - 1]
+
     insights.push({
-      type: "neutral",
-      title: `You sell yourself short at ${under.confidence}`,
-      body: `Cards you rated confidence ${under.confidence} actually hit ${under.hit_rate}% of the time — better than you predicted.`,
+      type: "good",
+      title: `${strongestIssue.issue_name} is your strong read`,
+      body: `Cards you flagged for ${strongestIssue.issue_name.toLowerCase()} still hit target ${strongestIssue.hit_rate}% of the time — you read that flaw well.`,
     })
+
+    if (weakestIssue.issue_name !== strongestIssue.issue_name) {
+      insights.push({
+        type: "warn",
+        title: `${weakestIssue.issue_name} is your weak read`,
+        body: `When you flagged ${weakestIssue.issue_name.toLowerCase()}, cards only hit target ${weakestIssue.hit_rate}% of the time — that flaw hurts more than you expect.`,
+      })
+    }
   }
 
   return insights
@@ -64,6 +102,8 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true)
   const [profit, setProfit] = useState<ProfitPoint[]>([])
   const [profitLoading, setProfitLoading] = useState(true)
+  const [issues, setIssues] = useState<IssueOutcome[]>([])
+  const [issuesLoading, setIssuesLoading] = useState(true)
 
   useEffect(() => {
     fetch("http://localhost:8000/analytics/calibration")
@@ -78,9 +118,15 @@ export default function Analytics() {
         setProfit(data)
         setProfitLoading(false)
       })
+    fetch("http://localhost:8000/analytics/issue-outcomes")
+      .then(res => res.json())
+      .then(data => {
+        setIssues(data)
+        setIssuesLoading(false)
+      })
   }, [])
 
-  const insights = buildInsights(points)
+  const insights = buildInsights(points, issues)
 
   return (
     <div className="animate-fade-in">
@@ -228,10 +274,12 @@ export default function Analytics() {
           <h3 className="text-base font-bold mb-1">What your data says</h3>
           <p className="text-sm text-gray-500 mb-5">Patterns worth acting on next submission.</p>
 
-          {loading ? (
+          {loading || issuesLoading ? (
             <div className="h-24 w-full bg-gray-100 rounded animate-pulse" />
           ) : insights.length === 0 ? (
-            <div className="text-sm text-gray-400">Insights appear once you have graded cards.</div>
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 py-8 text-center">
+              Insights appear once you have graded cards.
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
               {insights.map((insight, i) => {
@@ -259,9 +307,52 @@ export default function Analytics() {
             When you flagged each issue, how did those cards actually grade?
           </p>
 
-          <div className="flex-1 flex items-center justify-center text-sm text-gray-400 py-8 text-center">
-            Flag issues on your cards to see how they affect grades here.
-          </div>
+        {issuesLoading ? (
+          <div className="h-40 w-full bg-gray-100 rounded animate-pulse" />
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-gray-400 border-b border-gray-200">
+                <th className="pb-2 font-medium">Issue you flagged</th>
+                <th className="pb-2 font-medium text-right">Times</th>
+                <th className="pb-2 font-medium text-right">Avg grade</th>
+                <th className="pb-2 font-medium text-right">Hit target?</th>
+                <th className="pb-2 font-medium w-24"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {issues.map((issue, i) => {
+                const neverFlagged = issue.flag_count === 0
+                return (
+                  <tr key={i} className="border-b border-gray-100 last:border-0">
+                    <td className={`py-3 font-medium ${neverFlagged ? "text-gray-400" : ""}`}>
+                      {issue.issue_name}
+                    </td>
+                    <td className="py-3 text-right text-gray-600">{issue.flag_count}</td>
+                    <td className="py-3 text-right text-gray-600">
+                      {issue.avg_grade !== null ? issue.avg_grade : "—"}
+                    </td>
+                    <td className="py-3 text-right font-semibold">
+                      {issue.hit_rate !== null ? `${issue.hit_rate}%` : "—"}
+                    </td>
+                    <td className="py-3 pl-3">
+                      {issue.hit_rate !== null ? (
+                        <span className="block h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                          <span
+                            className="block h-full rounded-full"
+                            style={{ width: `${issue.hit_rate}%`, backgroundColor: barColor(issue.hit_rate) }}
+                          />
+                        </span>
+                      ) : (
+                        <span className="block h-1.5 w-full bg-gray-100 rounded-full" />
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
         </div>
       </div>
     </div>
