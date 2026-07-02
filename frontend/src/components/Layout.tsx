@@ -62,9 +62,7 @@ export default function Layout() {
 
         {/* New submission CTA */}
         <div className="mt-auto">
-          <NavLink
-            to="/new"
-            className="block text-center bg-[#f0b429] text-[#2a2a32] py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-150 hover:brightness-105"
+          <NavLink to="/Submission" className="block text-center bg-[#f0b429] text-[#2a2a32] py-2.5 rounded-lg text-sm font-bold cursor-pointer transition-all duration-150 hover:brightness-105"
           >
             + New submission
           </NavLink>

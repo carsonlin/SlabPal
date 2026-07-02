@@ -72,6 +72,9 @@ def post_batches(batch_data: BatchCreate, session: Session = Depends(get_session
     session.add(batch)
     session.commit()
     session.refresh(batch)
+
+    batch.card_count = 0
+    batch.net_profit = -(batch.fees_upfront + (batch.fees_after or 0))
     return batch
 
 

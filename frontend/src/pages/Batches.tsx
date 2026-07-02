@@ -1,4 +1,6 @@
 import BatchList from "../components/BatchList"
+import {NavLink } from "react-router-dom"
+
 
 export default function Batches() {
   return (
@@ -10,9 +12,10 @@ export default function Batches() {
           <div className="text-2xl font-bold">All batches</div>
         </div>
 
-        <button className="bg-[#e3350d] text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-150 hover:brightness-105">
+        <NavLink to="/Submission" 
+        className="bg-[#e3350d] text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all duration-150 hover:brightness-105">
           + New submission
-        </button>
+        </NavLink>
       </div>
 
       {/* Batch list (all batches — no limit) */}
