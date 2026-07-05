@@ -31,11 +31,15 @@ export default function Submission() {
   const [setString, setSetString] = useState("")
   const [rawValue, setRawValue] = useState("")
   const [targetGrade, setTargetGrade] = useState<number | null>(null)
-  const [confidence, setConfidence] = useState(8)
+  const [confidence, setConfidence] = useState(0)
   const [selectedIssues, setSelectedIssues] = useState<number[]>([])
+  const [frontPhoto, setFrontPhoto] = useState<File | null>(null)
+  const [backPhoto, setBackPhoto] = useState<File | null>(null)
 
   // --- Staged cards (frontend only, until submit) ---
   const [cards, setCards] = useState<StagedCard[]>([])
+  const [submitting, setSubmitting] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
   // toggle an issue id in/out of the selection
   function toggleIssue(id: number) {
@@ -84,11 +88,38 @@ export default function Submission() {
     setCards(cards.filter((_, i) => i !== index))
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!canSubmit) return
     // TODO: POST batch to /batches, then each card to /batches/{id}/cards
     console.log("Submitting batch:", { batchName, gradingCompany, fees, cards })
+    setSubmitting(true)
+    try{
+      const res = await fetch("http://localhost:8000/batches", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ name: batchName, grading_company: gradingCompany, fees_upfront: fees }),})
+      if (!res.ok) throw new Error(`Server error: ${res.status}`)
+      
+      const batch = await res.json()
+      for (const card of cards) {
+        const cardRes = await fetch(`http://localhost:8000/batches/${batch.id}/cards`, 
+          { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(
+          {pokemon_name: card.pokemon_name, 
+          set_string: card.set_string, 
+          raw_value: card.raw_value, 
+          target_grade: card.target_grade, 
+          confidence: card.confidence, 
+          issue_type_ids: card.issue_type_ids})})
+        if (!cardRes.ok) throw new Error("card not submitted")
+      }
+    }
+    //navigate back TODO
+    catch (error) {
+      console.error(error)
+      setError("Couldn't submit your batch. Please try again.")
+    }
+    finally{
+      setSubmitting(false)
+    }
   }
+
 
   return (
     <div className="animate-fade-in">
@@ -100,11 +131,11 @@ export default function Submission() {
         </div>
       </div>
 
-      <div className="max-w-3xl flex flex-col gap-5">
+      <div className="max-w-4xl flex flex-col gap-5">
         {/* Batch details */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
           <h3 className="text-base font-bold mb-1">Batch details</h3>
-          <p className="text-sm text-gray-500 mb-5">Where these cards are going and what it costs.</p>
+          <p className="text-sm text-gray-500 mb-5">Select grading company and associated upfront fees</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -150,7 +181,7 @@ export default function Submission() {
         {/* Add a card */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
           <h3 className="text-base font-bold mb-1">Add a card</h3>
-          <p className="text-sm text-gray-500 mb-5">Log what you see, and call your shot.</p>
+          <p className="text-sm text-gray-500 mb-5">Add card details to batch and pre-grading details</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -179,20 +210,36 @@ export default function Submission() {
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Photos — front &amp; back</label>
             <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                className="flex flex-col items-center justify-center gap-1 h-28 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-[#e3350d] hover:text-[#e3350d] transition-colors"
-              >
+              <label className="flex flex-col items-center justify-center gap-1 h-28 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-[#e3350d] hover:text-[#e3350d] transition-colors cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if(file){
+                        setFrontPhoto(file)
+                      }
+                  }}
+                />
                 <span className="text-2xl leading-none">＋</span>
-                <span className="text-sm">Front of card</span>
-              </button>
-              <button
-                type="button"
-                className="flex flex-col items-center justify-center gap-1 h-28 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-[#e3350d] hover:text-[#e3350d] transition-colors"
-              >
+                {frontPhoto ? (<span className="text-sm max-w-full truncate px-2">{frontPhoto.name}</span>) : (<span>Front of card</span>)}
+              </label>
+              <label className="flex flex-col items-center justify-center gap-1 h-28 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-[#e3350d] hover:text-[#e3350d] transition-colors cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if(file){
+                        setBackPhoto(file)
+                      }
+                  }}
+                />
                 <span className="text-2xl leading-none">＋</span>
-                <span className="text-sm">Back of card</span>
-              </button>
+                {backPhoto ? (<span className="text-sm max-w-full truncate px-2">{backPhoto.name}</span>) : (<span>Front of card</span>)}
+              </label>
             </div>
           </div>
 
@@ -209,7 +256,7 @@ export default function Submission() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Targeted grade</label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-10 gap-2">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((g) => (
                   <button
                     key={g}
@@ -231,7 +278,7 @@ export default function Submission() {
           {/* Possible issues (optional) */}
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Possible issues you see</label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-4">
               {ISSUE_OPTIONS.map((issue) => {
                 const selected = selectedIssues.includes(issue.id)
                 return (
@@ -307,10 +354,10 @@ export default function Submission() {
               {cards.map((card, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <div className="w-9 h-11 bg-gray-200 rounded flex-shrink-0" />
-                  <div className="flex-1 text-sm">
-                    <span className="font-semibold">{card.pokemon_name}</span>
-                    <span className="text-gray-400"> · {card.set_string}</span>
-                  </div>
+                    <div className="flex-1 text-sm">
+                      <span className="font-semibold">{card.pokemon_name}</span>
+                      <span className="text-gray-400"> · {card.set_string}</span>
+                    </div>
                   <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-full text-xs font-medium">
                     conf {card.confidence}
                   </span>
@@ -332,7 +379,7 @@ export default function Submission() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!canSubmit}
+              disabled={!canSubmit || submitting}
               className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-150 ${
                 canSubmit
                   ? "bg-[#f0b429] text-[#2a2a32] cursor-pointer hover:brightness-105"
@@ -342,6 +389,8 @@ export default function Submission() {
               Submit batch →
             </button>
           </div>
+         {error && <div className="flex text-red-600 text-sm justify-end">Error, please try again</div>}
+
         </div>
       </div>
     </div>
