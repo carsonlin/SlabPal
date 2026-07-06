@@ -82,7 +82,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-4 mb-8">
         <OverviewCard
           label="Net grading profit"
-          value={`${summary.net_grading_profit >= 0 ? "+" : "-"}$${Math.abs(summary.net_grading_profit)}`}
+          value={`${summary.net_grading_profit >= 0 ? "+" : "-"}$${Math.abs(summary.net_grading_profit).toLocaleString()}`}
           accent="bg-red-600"
           subtitle={summary.net_grading_profit >= 0 ? "value added, after fees" : "value lost, after fees"}
           tone={summary.net_grading_profit >= 0 ? "positive" : "negative"}

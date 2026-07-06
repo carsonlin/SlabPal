@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 interface StagedCard {
   pokemon_name: string
@@ -11,13 +12,14 @@ interface StagedCard {
 
 // issue label -> id (matches your issue_types table, ids 1-7)
 const ISSUE_OPTIONS = [
-  { id: 1, label: "Off-center" },
-  { id: 2, label: "Scratched surface" },
-  { id: 3, label: "Edge whitening" },
-  { id: 4, label: "Soft corner" },
-  { id: 5, label: "Print line" },
-  { id: 6, label: "Dimple / dent" },
-  { id: 7, label: "Staining" },
+  { id: 1, label: "Surface Scratch" },
+  { id: 2, label: "Edge Whitening" },
+  { id: 3, label: "Crease" },
+  { id: 4, label: "Front-Centering" },
+  { id: 5, label: "Back Centering" },
+  { id: 6, label: "Dent" },
+  { id: 7, label: "Lifted Corner" },
+  { id: 8, label: "Print Line" },
 ]
 
 export default function Submission() {
@@ -40,6 +42,7 @@ export default function Submission() {
   const [cards, setCards] = useState<StagedCard[]>([])
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   // toggle an issue id in/out of the selection
   function toggleIssue(id: number) {
@@ -53,11 +56,12 @@ export default function Submission() {
     cardName.trim() !== "" &&
     setString.trim() !== "" &&
     rawValue.trim() !== "" &&
-    targetGrade !== null
+    targetGrade !== null &&
+    Number(rawValue) >= 0
 
   // are the batch details all filled?
   const isBatchValid =
-    batchName.trim() !== "" && gradingCompany.trim() !== "" && fees.trim() !== ""
+    batchName.trim() !== "" && gradingCompany.trim() !== "" && fees.trim() !== "" && Number(fees) >=0
 
   // can we submit? valid batch details + at least one card
   const canSubmit = isBatchValid && cards.length > 0
@@ -80,7 +84,7 @@ export default function Submission() {
     setSetString("")
     setRawValue("")
     setTargetGrade(null)
-    setConfidence(8)
+    setConfidence(0)
     setSelectedIssues([])
   }
 
@@ -90,9 +94,8 @@ export default function Submission() {
 
   async function handleSubmit() {
     if (!canSubmit) return
-    // TODO: POST batch to /batches, then each card to /batches/{id}/cards
-    console.log("Submitting batch:", { batchName, gradingCompany, fees, cards })
     setSubmitting(true)
+    setError(null)
     try{
       const res = await fetch("http://localhost:8000/batches", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ name: batchName, grading_company: gradingCompany, fees_upfront: fees }),})
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
@@ -109,14 +112,16 @@ export default function Submission() {
           issue_type_ids: card.issue_type_ids})})
         if (!cardRes.ok) throw new Error("card not submitted")
       }
+        //navigate back
+      navigate("/")
     }
-    //navigate back TODO
     catch (error) {
       console.error(error)
       setError("Couldn't submit your batch. Please try again.")
     }
     finally{
       setSubmitting(false)
+
     }
   }
 
@@ -238,7 +243,7 @@ export default function Submission() {
                   }}
                 />
                 <span className="text-2xl leading-none">＋</span>
-                {backPhoto ? (<span className="text-sm max-w-full truncate px-2">{backPhoto.name}</span>) : (<span>Front of card</span>)}
+                {backPhoto ? (<span className="text-sm max-w-full truncate px-2">{backPhoto.name}</span>) : (<span>Back of card</span>)}
               </label>
             </div>
           </div>
@@ -278,7 +283,7 @@ export default function Submission() {
           {/* Possible issues (optional) */}
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Possible issues you see</label>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-1.5">
               {ISSUE_OPTIONS.map((issue) => {
                 const selected = selectedIssues.includes(issue.id)
                 return (
@@ -379,7 +384,7 @@ export default function Submission() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!canSubmit || submitting}
+              disabled={!canSubmit && !submitting}
               className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-150 ${
                 canSubmit
                   ? "bg-[#f0b429] text-[#2a2a32] cursor-pointer hover:brightness-105"

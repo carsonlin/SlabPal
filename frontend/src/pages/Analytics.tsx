@@ -69,7 +69,7 @@ function buildInsights(points: CalibrationPoint[], issues: IssueOutcome[]) {
 
   // --- Issue-based insights ---
   if (issues.length > 0) {
-    const sortedByHit = [...issues].sort((a, b) => b.hit_rate - a.hit_rate)
+    const sortedByHit = [...issues].filter((issue) => issue.hit_rate !== null).sort((a, b) => b.hit_rate - a.hit_rate)
     const strongestIssue = sortedByHit[0]
     const weakestIssue = sortedByHit[sortedByHit.length - 1]
 

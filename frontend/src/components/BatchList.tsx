@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 
 interface Batch {
   id: string
@@ -71,9 +72,10 @@ function BatchList({ limit }: { limit?: number }) {
           : "bg-gray-500"
 
         return (
-          <div
+          <Link
             key={batch.id}
             className="bg-white border border-gray-200 rounded-lg p-4 shadow-xs flex items-center gap-6 cursor-pointer hover:border-[#e3350d]"
+            to={`/BatchDetail/${batch.id}`}
           >
             {/* Company badge */}
             <div className={`w-11 h-11 rounded-lg ${companyColor} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
@@ -127,7 +129,7 @@ function BatchList({ limit }: { limit?: number }) {
               }`}></span>
               {batch.status === "complete" ? "Complete" : "Grading"}
             </span>
-          </div>
+          </Link>
         )
       })}
     </div>

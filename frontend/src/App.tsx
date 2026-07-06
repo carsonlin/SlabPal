@@ -5,6 +5,7 @@ import Batches from "./pages/Batches"
 import Analytics from "./pages/Analytics"
 import Login from "./pages/Login"
 import Submission from "./pages/Submission"
+import BatchDetail from "./pages/BatchDetail"
 
 function App() {
   return (
@@ -16,9 +17,10 @@ function App() {
         {/* These pages share the Layout (sidebar) */}
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/batches" element={<Batches />} />
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/Batches" element={<Batches />} />
+          <Route path="/Analytics" element={<Analytics />} />
           <Route path="/Submission" element={<Submission />} />
+          <Route path="/BatchDetail/:id" element={<BatchDetail />} />
         </Route>
       </Routes>
     </BrowserRouter>

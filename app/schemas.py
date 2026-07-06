@@ -11,7 +11,6 @@ class IssueTypeOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
-
 class BatchOut(BaseModel):
     id: str
     user_id: str
@@ -25,11 +24,6 @@ class BatchOut(BaseModel):
     card_count: int = 0
     net_profit: Decimal
     model_config = {"from_attributes": True}
-
-class BatchCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=255)
-    grading_company: GradingCompany
-    fees_upfront: Decimal = Field(ge=0, le=99999999.99)
 
 
 class CardOut(BaseModel):
@@ -92,3 +86,11 @@ class UserOut(BaseModel):
     id: str
     email: str
     model_config = {"from_attributes": True}
+
+
+class BatchWithCardsCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    grading_company: GradingCompany
+    fees_upfront: Decimal = Field(ge=0, le=99999999.99)
+    cards: list[CardCreate] = Field(min_length=1)
+

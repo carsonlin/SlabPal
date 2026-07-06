@@ -5,7 +5,7 @@ from sqlalchemy import func, case
 from app.db import get_session
 from app.models import IssueType, Batch, Card, User, BatchStatus, CardIssue
 from app.schemas import (
-    IssueTypeOut, BatchOut, BatchCreate, CardOut, CardCreate,
+    BatchWithCardsCreate, IssueTypeOut, BatchOut, CardOut, CardCreate,
     BatchDetailOut, CardUpdate, BatchUpdate, CalibrationPoint, SummaryOut, UserOut, UserCreate
 )
 from datetime import datetime, timezone, timedelta
@@ -61,19 +61,48 @@ def get_batches(limit: int | None = None, session: Session = Depends(get_session
 
 
 
-@app.post("/batches", response_model=BatchOut)
-def post_batches(batch_data: BatchCreate, session: Session = Depends(get_session)):
+@app.post("/batches", response_model=BatchWithCardsCreate)
+def create_batch(data: BatchWithCardsCreate, session: Session = Depends(get_session)):
+    # validate all submitted issue ids across every card, in ONE query
+    valid_ids = {row.id for row in session.query(IssueType.id).all()}
+    for card_data in data.cards:
+        invalid = [i for i in card_data.issue_type_ids if i not in valid_ids]
+        if invalid:
+            raise HTTPException(status_code=422, detail=f"Invalid issue type ids: {invalid}")
+
+    # create the batch
     batch = Batch(
-        name = batch_data.name,
-        grading_company=batch_data.grading_company,
-        fees_upfront=batch_data.fees_upfront,
+        name=data.name,
+        grading_company=data.grading_company,
+        fees_upfront=data.fees_upfront,
         user_id="0799c44d-8b92-4b4f-b7e1-61e30b3108e2",
     )
     session.add(batch)
+    session.flush()   # get batch.id without committing yet
+
+    # create each card + its issue flags
+    for card_data in data.cards:
+        card = Card(
+            pokemon_name=card_data.pokemon_name,
+            set_string=card_data.set_string,
+            raw_value=card_data.raw_value,
+            target_grade=card_data.target_grade,
+            confidence=card_data.confidence,
+            batch_id=batch.id,
+        )
+        session.add(card)
+        session.flush()   # get card.id for the issue rows
+
+        # dedupe issue ids so a repeated id doesn't hit the composite PK conflict
+        for issue_id in set(card_data.issue_type_ids):
+            session.add(CardIssue(card_id=card.id, issue_type_id=issue_id))
+
+    # ONE commit: batch + all cards + all issues, atomically (all-or-nothing)
     session.commit()
     session.refresh(batch)
 
-    batch.card_count = 0
+    # computed (non-column) fields for BatchDetailOut — new batch has no graded cards yet
+    batch.card_count = len(batch.cards)
     batch.net_profit = -(batch.fees_upfront + (batch.fees_after or 0))
     return batch
 
@@ -110,44 +139,24 @@ def delete_user(id: str, session: Session = Depends(get_session)):
 
 @app.get("/batches/{id}", response_model=BatchDetailOut)
 def get_batch(id: str, session: Session = Depends(get_session)):
-    batch = session.get(Batch, id)
-    if batch is None:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    return batch
-
-
-@app.post("/batches/{id}/cards", response_model=CardOut)
-def create_card(id: str, card_data: CardCreate, session: Session = Depends(get_session)):
-    # verify the batch exists
+    # fetch the batch (404 if it doesn't exist)
     batch = session.get(Batch, id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
-    # validate the submitted issue ids actually exist
-    if card_data.issue_type_ids:
-        valid_ids = {row.id for row in session.query(IssueType.id).all()}
-        invalid = [i for i in card_data.issue_type_ids if i not in valid_ids]
-        if invalid:
-            raise HTTPException(status_code=422, detail=f"Invalid issue type ids: {invalid}")
-
-    card = Card(
-        pokemon_name=card_data.pokemon_name,
-        set_string=card_data.set_string,
-        raw_value=card_data.raw_value,
-        target_grade=card_data.target_grade,
-        confidence=card_data.confidence,
-        batch_id=id,
+    # value added from graded cards only (graded_value - raw_value)
+    value_added = sum(
+        (card.graded_value - card.raw_value)
+        for card in batch.cards
+        if card.graded_value is not None
     )
-    session.add(card)
-    session.flush()
 
-    # dedupe issue ids so a repeated id doesn't hit the primary-key conflict
-    for issue_id in set(card_data.issue_type_ids):
-        session.add(CardIssue(card_id=card.id, issue_type_id=issue_id))
+    # computed (non-column) fields for BatchDetailOut — Option A: fees always count
+    batch.card_count = len(batch.cards)
+    batch.net_profit = value_added - (batch.fees_upfront + (batch.fees_after or 0))
 
-    session.commit()
-    session.refresh(card)
-    return card
+    # cards come free from the batch.cards relationship (serialized as CardOut)
+    return batch
 
 
 @app.patch("/cards/{id}", response_model=CardOut)
@@ -294,8 +303,6 @@ def create_user(user_data: UserCreate, session: Session = Depends(get_session)):
     return user
 
 
-from sqlalchemy import func
-
 @app.get("/analytics/profit-over-time")
 def profit_over_time(session: Session = Depends(get_session)):
     # value added per month from graded cards
@@ -340,7 +347,7 @@ def issue_outcomes(session: Session = Depends(get_session)):
     results = (
         session.query(
             IssueType.label.label("issue_name"),
-            func.count(CardIssue.card_id).label("flag_count"),
+            func.count(Card.id).label("flag_count"),
             func.avg(Card.actual_grade).label("avg_grade"),
             func.sum(
                 case((Card.actual_grade >= Card.target_grade, 1), else_=0)
@@ -348,7 +355,7 @@ def issue_outcomes(session: Session = Depends(get_session)):
         )
         .outerjoin(CardIssue, CardIssue.issue_type_id == IssueType.id)
         .outerjoin(Card, (Card.id == CardIssue.card_id) & (Card.actual_grade.isnot(None)))
-        .group_by(IssueType.id, IssueType.label)
+        .group_by(IssueType.label)
         .order_by(IssueType.id)
         .all()
     )
