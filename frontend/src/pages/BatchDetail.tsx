@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
+import ResultsModal from "../components/ResultsModal"
 
 interface CardOut {
   id: string
@@ -93,25 +94,16 @@ export default function BatchDetail() {
       </div>
 
       {showResults && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowResults(false)}   // click backdrop to close
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
-            onClick={(e) => e.stopPropagation()}   // clicking inside doesn't close
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Enter grading results</h3>
-              <button onClick={() => setShowResults(false)} className="text-gray-400 hover:text-gray-600 text-xl">
-                ×
-              </button>
-            </div>
-
-            {/* the form content — inputs for each card's grade */}
-
-          </div>
-        </div>
+        <ResultsModal
+        batchName={batch.name}                          // string prop
+        cards={batch.cards}                             // array prop
+        onClose={() => setShowResults(false)}           // function prop
+        onSaved={() => {
+          fetch(`http://localhost:8000/batches/${id}`)
+            .then(r => r.json())
+            .then(setBatch)                             // re-fetch after save
+        }}
+      />
       )}
 
       {/* Back link + meta */}
