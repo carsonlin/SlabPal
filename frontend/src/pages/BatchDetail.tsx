@@ -28,6 +28,7 @@ interface BatchDetail {
   cards: CardOut[]
 }
 
+
 function fmtDate(d: string | null) {
   if (!d) return null
   return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -38,6 +39,8 @@ export default function BatchDetail() {
   const navigate = useNavigate()
   const [batch, setBatch] = useState<BatchDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showResults, setShowResults] = useState(false)
+
 
   useEffect(() => {
     fetch(`http://localhost:8000/batches/${id}`)
@@ -83,10 +86,33 @@ export default function BatchDetail() {
           <div className="text-sm text-gray-400">Batches / {batch.name}</div>
           <div className="text-2xl font-bold">{batch.name}</div>
         </div>
-        <button className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#e3350d] text-white hover:bg-[#c62d0b] transition-all cursor-pointer">
+        <button className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#e3350d] text-white hover:bg-[#c62d0b] transition-all cursor-pointer"
+        onClick={() => setShowResults(true)}>
           Enter results
         </button>
       </div>
+
+      {showResults && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowResults(false)}   // click backdrop to close
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6"
+            onClick={(e) => e.stopPropagation()}   // clicking inside doesn't close
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Enter grading results</h3>
+              <button onClick={() => setShowResults(false)} className="text-gray-400 hover:text-gray-600 text-xl">
+                ×
+              </button>
+            </div>
+
+            {/* the form content — inputs for each card's grade */}
+
+          </div>
+        </div>
+      )}
 
       {/* Back link + meta */}
       <div className="mb-6">
