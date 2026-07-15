@@ -1,21 +1,4 @@
-interface IssueType {
-  id: number
-  label: string
-}
-
-interface CardOut {
-  id: string
-  pokemon_name: string
-  set_string: string
-  raw_value: string
-  target_grade: number
-  actual_grade: number | null
-  graded_value: string | null
-  confidence: number
-  front_photo_key: string | null
-  back_photo_key: string | null
-  issue_types: IssueType[]
-}
+import type { CardOut } from "../types"
 
 interface CardModalProps {
   card: CardOut

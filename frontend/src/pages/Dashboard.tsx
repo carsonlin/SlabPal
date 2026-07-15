@@ -1,23 +1,12 @@
 import OverviewCard from "../components/OverviewCard"
 import BatchList from "../components/BatchList"
 import { useState, useEffect } from "react"
-
-interface HighestProfitCard {
-  pokemon_name: string
-  profit: number
-}
-
-interface SummaryOut {
-  net_grading_profit: number
-  cards_graded: number
-  total_batches: number
-  grade_hit_rate: number
-  highest_profit_card: HighestProfitCard | null
-}
+import { API_BASE } from "../api"
+import type { SummaryOut } from "../types"
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<SummaryOut>({
-    net_grading_profit: 0,
+    net_grading_profit: "0",
     cards_graded: 0,
     total_batches: 0,
     grade_hit_rate: 0,
@@ -28,13 +17,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     setLoading(true)
-    fetch(`http://localhost:8000/analytics/summary?period=${period}`)
+    fetch(`${API_BASE}/analytics/summary?period=${period}`)
       .then(res => res.json())
       .then(data => {
         setSummary(data)
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [period])
+
+  // Decimal money fields arrive as strings — parse for math/formatting
+  const netProfit = parseFloat(summary.net_grading_profit)
 
   return (
     <div className="animate-fade-in">
@@ -82,10 +75,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-4 mb-8">
         <OverviewCard
           label="Net grading profit"
-          value={`${summary.net_grading_profit >= 0 ? "+" : "-"}$${Math.abs(summary.net_grading_profit).toLocaleString()}`}
+          value={`${netProfit >= 0 ? "+" : "-"}$${Math.abs(netProfit).toLocaleString()}`}
           accent="bg-red-600"
-          subtitle={summary.net_grading_profit >= 0 ? "value added, after fees" : "value lost, after fees"}
-          tone={summary.net_grading_profit >= 0 ? "positive" : "negative"}
+          subtitle={netProfit >= 0 ? "value added, after fees" : "value lost, after fees"}
+          tone={netProfit >= 0 ? "positive" : "negative"}
           colorValue={true}
           loading={loading}
         />
@@ -111,7 +104,7 @@ export default function Dashboard() {
           accent="bg-blue-500"
           subtitle={
             summary.highest_profit_card
-              ? `$${summary.highest_profit_card.profit}`
+              ? `$${parseFloat(summary.highest_profit_card.profit).toLocaleString()}`
               : "Make your first profits with our app!"
           }
           tone={summary.highest_profit_card ? "positive" : "neutral"}

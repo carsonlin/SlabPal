@@ -1,15 +1,9 @@
 import { useState } from "react"
-
-interface CardOut {
-  id: string
-  pokemon_name: string
-  set_string: string
-  target_grade: number
-  actual_grade: number | null
-  graded_value: string | null
-}
+import { API_BASE } from "../api"
+import type { CardOut } from "../types"
 
 interface ResultsModalProps {
+  batchId: string
   batchName: string
   cards: CardOut[]
   onClose: () => void
@@ -22,7 +16,7 @@ interface ResultEntry {
 }
 
 
-export default function ResultsModal({batchName, cards, onClose, onSaved}: ResultsModalProps){
+export default function ResultsModal({batchId, batchName, cards, onClose, onSaved}: ResultsModalProps){
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [entries, setEntries] = useState<Record<string, ResultEntry>>(() => {
@@ -49,17 +43,19 @@ export default function ResultsModal({batchName, cards, onClose, onSaved}: Resul
     setSaving(true)
     setError(null)
     try {
-      for (const c of cards) {
-        const res = await fetch(`http://localhost:8000/cards/${c.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+      // one atomic request: all card grades + batch status flip, all-or-nothing on the server
+      const res = await fetch(`${API_BASE}/batches/${batchId}/results`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          results: cards.map((c) => ({
+            id: c.id,
             actual_grade: Number(entries[c.id].actual_grade),
             graded_value: entries[c.id].graded_value,
-          }),
-        })
-        if (!res.ok) throw new Error(`Failed (${res.status})`)
-      }
+          })),
+        }),
+      })
+      if (!res.ok) throw new Error(`Failed (${res.status})`)
       onSaved()
       onClose()
     } catch (err) {

@@ -2,11 +2,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
-from app.db import get_session
+from app.db import get_session, DEV_USER_ID
 from app.models import IssueType, Batch, Card, User, BatchStatus, CardIssue
 from app.schemas import (
     BatchWithCardsCreate, IssueTypeOut, BatchOut, CardOut, CardCreate,
-    BatchDetailOut, CardUpdate, BatchUpdate, CalibrationPoint, SummaryOut, UserOut, UserCreate
+    BatchDetailOut, CardUpdate, BatchUpdate, CalibrationPoint, SummaryOut, UserOut, UserCreate,
+    BatchResults
 )
 from datetime import datetime, timezone, timedelta
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,7 +76,7 @@ def create_batch(data: BatchWithCardsCreate, session: Session = Depends(get_sess
         name=data.name,
         grading_company=data.grading_company,
         fees_upfront=data.fees_upfront,
-        user_id="0799c44d-8b92-4b4f-b7e1-61e30b3108e2",
+        user_id=DEV_USER_ID,
     )
     session.add(batch)
     session.flush()   # get batch.id without committing yet
@@ -182,6 +183,38 @@ def update_batch(id: str, batch_data: BatchUpdate, session: Session = Depends(ge
         setattr(batch, field, value)
     session.commit()
     session.refresh(batch)
+    return batch
+
+
+@app.patch("/batches/{id}/results", response_model=BatchDetailOut)
+def submit_results(id: str, data: BatchResults, session: Session = Depends(get_session)):
+    batch = session.get(Batch, id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    # every submitted card must belong to THIS batch — reject the whole request otherwise
+    cards_by_id = {card.id: card for card in batch.cards}
+    for result in data.results:
+        card = cards_by_id.get(result.id)
+        if card is None:
+            raise HTTPException(status_code=422, detail=f"Card {result.id} not in this batch")
+        card.actual_grade = result.actual_grade
+        card.graded_value = result.graded_value
+
+    batch.status = BatchStatus.COMPLETE
+
+    # ONE commit: all card grades + status flip, atomically (all-or-nothing)
+    session.commit()
+    session.refresh(batch)
+
+    # computed (non-column) fields for BatchDetailOut
+    value_added = sum(
+        (card.graded_value - card.raw_value)
+        for card in batch.cards
+        if card.graded_value is not None
+    )
+    batch.card_count = len(batch.cards)
+    batch.net_profit = value_added - (batch.fees_upfront + (batch.fees_after or 0))
     return batch
 
 
@@ -305,29 +338,27 @@ def create_user(user_data: UserCreate, session: Session = Depends(get_session)):
 
 @app.get("/analytics/profit-over-time")
 def profit_over_time(session: Session = Depends(get_session)):
+    # Bucket by "YYYY-MM" in Python rather than in SQL so this works on any
+    # backend (strftime is SQLite-only; Postgres would need to_char/date_trunc).
+    value_by_month: dict[str, float] = {}
+    fees_by_month: dict[str, float] = {}
+
     # value added per month from graded cards
-    value_rows = (
-        session.query(
-            func.strftime("%Y-%m", Batch.submitted_at).label("month"),
-            func.sum(
-                case((Card.graded_value.isnot(None), Card.graded_value - Card.raw_value), else_=0)
-            ).label("value_added"),
-        )
+    card_rows = (
+        session.query(Batch.submitted_at, Card.graded_value, Card.raw_value)
         .join(Card, Card.batch_id == Batch.id)
-        .group_by(func.strftime("%Y-%m", Batch.submitted_at))
+        .filter(Card.graded_value.isnot(None))
+        .all()
     )
+    for submitted_at, graded_value, raw_value in card_rows:
+        month = submitted_at.strftime("%Y-%m")
+        value_by_month[month] = value_by_month.get(month, 0.0) + float(graded_value - raw_value)
 
     # fees per month from ALL batches
-    fee_rows = (
-        session.query(
-            func.strftime("%Y-%m", Batch.submitted_at).label("month"),
-            func.sum(Batch.fees_upfront + func.coalesce(Batch.fees_after, 0)).label("fees"),
-        )
-        .group_by(func.strftime("%Y-%m", Batch.submitted_at))
-    )
-
-    value_by_month = {m: float(v or 0) for m, v in value_rows.all()}
-    fees_by_month = {m: float(f or 0) for m, f in fee_rows.all()}
+    batch_rows = session.query(Batch.submitted_at, Batch.fees_upfront, Batch.fees_after).all()
+    for submitted_at, fees_upfront, fees_after in batch_rows:
+        month = submitted_at.strftime("%Y-%m")
+        fees_by_month[month] = fees_by_month.get(month, 0.0) + float(fees_upfront + (fees_after or 0))
 
     months = sorted(set(value_by_month) | set(fees_by_month))
 
@@ -335,8 +366,7 @@ def profit_over_time(session: Session = Depends(get_session)):
     running = 0.0
     result = []
     for m in months:
-        monthly = value_by_month.get(m, 0) - fees_by_month.get(m, 0)
-        running += monthly                       # ← add each month to the running total
+        running += value_by_month.get(m, 0) - fees_by_month.get(m, 0)
         result.append({"month": m, "profit": round(running, 2)})
 
     return result

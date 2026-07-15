@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Cell,
   LineChart, Line, ResponsiveContainer,
 } from "recharts"
+import { API_BASE } from "../api"
 
 interface CalibrationPoint {
   confidence: number
@@ -19,7 +20,7 @@ interface IssueOutcome {
   issue_name: string
   flag_count: number
   avg_grade: number | null
-  hit_rate: number
+  hit_rate: number | null   // null until a flagged card has been graded
 }
 
 function categoryColor(category: string) {
@@ -68,8 +69,10 @@ function buildInsights(points: CalibrationPoint[], issues: IssueOutcome[]) {
   }
 
   // --- Issue-based insights ---
-  if (issues.length > 0) {
-    const sortedByHit = [...issues].filter((issue) => issue.hit_rate !== null).sort((a, b) => b.hit_rate - a.hit_rate)
+  const sortedByHit = [...issues]
+    .filter((issue): issue is IssueOutcome & { hit_rate: number } => issue.hit_rate !== null)
+    .sort((a, b) => b.hit_rate - a.hit_rate)
+  if (sortedByHit.length > 0) {
     const strongestIssue = sortedByHit[0]
     const weakestIssue = sortedByHit[sortedByHit.length - 1]
 
@@ -106,24 +109,27 @@ export default function Analytics() {
   const [issuesLoading, setIssuesLoading] = useState(true)
 
   useEffect(() => {
-    fetch("http://localhost:8000/analytics/calibration")
+    fetch(`${API_BASE}/analytics/calibration`)
       .then(res => res.json())
       .then(data => {
         setPoints(data)
         setLoading(false)
       })
-    fetch("http://localhost:8000/analytics/profit-over-time")
+      .catch(() => setLoading(false))
+    fetch(`${API_BASE}/analytics/profit-over-time`)
       .then(res => res.json())
       .then(data => {
         setProfit(data)
         setProfitLoading(false)
       })
-    fetch("http://localhost:8000/analytics/issue-outcomes")
+      .catch(() => setProfitLoading(false))
+    fetch(`${API_BASE}/analytics/issue-outcomes`)
       .then(res => res.json())
       .then(data => {
         setIssues(data)
         setIssuesLoading(false)
       })
+      .catch(() => setIssuesLoading(false))
   }, [])
 
   const insights = buildInsights(points, issues)

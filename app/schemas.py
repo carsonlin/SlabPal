@@ -60,6 +60,14 @@ class BatchUpdate(BaseModel):
     status: BatchStatus | None = None
     fees_after: Decimal | None = Field(default=None, ge=0, le=99999999.99)
 
+class CardResult(BaseModel):
+    id: str
+    actual_grade: int = Field(ge=1, le=10)
+    graded_value: Decimal = Field(ge=0, le=99999999.99)
+
+class BatchResults(BaseModel):
+    results: list[CardResult] = Field(min_length=1)
+
 class CalibrationPoint(BaseModel):
     confidence: int
     hit_rate: int

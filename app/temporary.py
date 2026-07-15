@@ -1,13 +1,10 @@
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
  
-from app.db import SessionLocal
+from app.db import SessionLocal, DEV_USER_ID
 from app.models import Batch, Card, BatchStatus, GradingCompany
- 
-# CHANGE THIS to your dev user's id
-DEV_USER_ID = "e02d460a-c0f5-4236-9799-e7e62a73d26c"
- 
- 
+
+
 def make_batch(session, name, company, days_ago, fees_upfront, fees_after, cards):
     """Create one batch dated `days_ago` days in the past, with its cards."""
     submitted = datetime.now(timezone.utc) - timedelta(days=days_ago)

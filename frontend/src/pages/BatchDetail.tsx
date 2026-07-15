@@ -2,40 +2,8 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import ResultsModal from "../components/ResultsModal"
 import CardModal from "../components/CardModal"
-
-
-interface IssueType {
-  id: number
-  label: string
-}
-
-interface CardOut {
-  id: string
-  pokemon_name: string
-  set_string: string
-  raw_value: string
-  target_grade: number
-  actual_grade: number | null
-  graded_value: string | null
-  confidence: number
-  front_photo_key: string | null
-  back_photo_key: string | null
-  issue_types: IssueType[]
-}
-
-interface BatchDetail {
-  id: string
-  name: string
-  grading_company: string
-  status: string
-  fees_upfront: string
-  fees_after: string | null
-  submitted_at: string
-  returned_at: string | null
-  card_count: number
-  net_profit: string
-  cards: CardOut[]
-}
+import { API_BASE } from "../api"
+import type { CardOut, BatchDetail } from "../types"
 
 
 function fmtDate(d: string | null) {
@@ -53,12 +21,13 @@ export default function BatchDetail() {
 
 
   useEffect(() => {
-    fetch(`http://localhost:8000/batches/${id}`)
+    fetch(`${API_BASE}/batches/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setBatch(data)
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [id])
 
   if (loading) {
@@ -104,13 +73,15 @@ export default function BatchDetail() {
 
       {showResults && (
         <ResultsModal
+        batchId={batch.id}                              // string prop
         batchName={batch.name}                          // string prop
         cards={batch.cards}                             // array prop
         onClose={() => setShowResults(false)}           // function prop
         onSaved={() => {
-          fetch(`http://localhost:8000/batches/${id}`)
+          fetch(`${API_BASE}/batches/${id}`)
             .then(r => r.json())
             .then(setBatch)                             // re-fetch after save
+            .catch(() => {})
         }}
       />
       )}

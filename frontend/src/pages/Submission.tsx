@@ -1,5 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
+import { API_BASE } from "../api"
+import type { IssueType } from "../types"
 
 interface StagedCard {
   pokemon_name: string
@@ -10,19 +12,16 @@ interface StagedCard {
   issue_type_ids: number[]
 }
 
-// issue label -> id (matches your issue_types table, ids 1-7)
-const ISSUE_OPTIONS = [
-  { id: 1, label: "Surface Scratch" },
-  { id: 2, label: "Edge Whitening" },
-  { id: 3, label: "Crease" },
-  { id: 4, label: "Front-Centering" },
-  { id: 5, label: "Back Centering" },
-  { id: 6, label: "Dent" },
-  { id: 7, label: "Lifted Corner" },
-  { id: 8, label: "Print Line" },
-]
-
 export default function Submission() {
+  // issue options come from the DB so labels/ids always match what's stored
+  const [issueOptions, setIssueOptions] = useState<IssueType[]>([])
+  useEffect(() => {
+    fetch(`${API_BASE}/issue-types`)
+      .then((res) => res.json())
+      .then(setIssueOptions)
+      .catch(() => setIssueOptions([]))
+  }, [])
+
   // --- Batch details state ---
   const [batchName, setBatchName] = useState("")
   const [gradingCompany, setGradingCompany] = useState("PSA")
@@ -97,21 +96,19 @@ export default function Submission() {
     setSubmitting(true)
     setError(null)
     try{
-      const res = await fetch("http://localhost:8000/batches", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({ name: batchName, grading_company: gradingCompany, fees_upfront: fees }),})
+      // one atomic request: batch + all its cards (matches POST /batches -> BatchWithCardsCreate)
+      const res = await fetch(`${API_BASE}/batches`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          name: batchName,
+          grading_company: gradingCompany,
+          fees_upfront: fees,
+          cards,
+        }),
+      })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
-      
-      const batch = await res.json()
-      for (const card of cards) {
-        const cardRes = await fetch(`http://localhost:8000/batches/${batch.id}/cards`, 
-          { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(
-          {pokemon_name: card.pokemon_name, 
-          set_string: card.set_string, 
-          raw_value: card.raw_value, 
-          target_grade: card.target_grade, 
-          confidence: card.confidence, 
-          issue_type_ids: card.issue_type_ids})})
-        if (!cardRes.ok) throw new Error("card not submitted")
-      }
+      await res.json()
         //navigate back
       navigate("/")
     }
@@ -284,7 +281,7 @@ export default function Submission() {
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Possible issues you see</label>
             <div className="flex flex-wrap gap-1.5">
-              {ISSUE_OPTIONS.map((issue) => {
+              {issueOptions.map((issue) => {
                 const selected = selectedIssues.includes(issue.id)
                 return (
                   <button
@@ -383,7 +380,7 @@ export default function Submission() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!canSubmit && !submitting}
+              disabled={!canSubmit || submitting}
               className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all duration-150 ${
                 canSubmit
                   ? "bg-[#f0b429] text-[#2a2a32] cursor-pointer hover:brightness-105"

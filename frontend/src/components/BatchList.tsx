@@ -1,19 +1,7 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-
-interface Batch {
-  id: string
-  user_id: string
-  name: string
-  grading_company: string
-  status: string
-  fees_upfront: string
-  fees_after: string | null
-  submitted_at: string
-  returned_at: string | null
-  card_count: number
-  net_profit: string
-}
+import { API_BASE } from "../api"
+import type { Batch } from "../types"
 
 function BatchList({ limit }: { limit?: number }) {
   const [batches, setBatches] = useState<Batch[]>([])
@@ -21,14 +9,15 @@ function BatchList({ limit }: { limit?: number }) {
 
   useEffect(() => {
     const url = limit
-      ? `http://localhost:8000/batches?limit=${limit}`
-      : "http://localhost:8000/batches"
+      ? `${API_BASE}/batches?limit=${limit}`
+      : `${API_BASE}/batches`
     fetch(url)
       .then(res => res.json())
       .then(data => {
         setBatches(data)
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [limit])
 
   if (loading) {
