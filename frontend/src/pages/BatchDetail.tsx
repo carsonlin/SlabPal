@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import ResultsModal from "../components/ResultsModal"
+import CardModal from "../components/CardModal"
+
+
+interface IssueType {
+  id: number
+  label: string
+}
 
 interface CardOut {
   id: string
@@ -13,6 +20,7 @@ interface CardOut {
   confidence: number
   front_photo_key: string | null
   back_photo_key: string | null
+  issue_types: IssueType[]
 }
 
 interface BatchDetail {
@@ -41,6 +49,7 @@ export default function BatchDetail() {
   const [batch, setBatch] = useState<BatchDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [showResults, setShowResults] = useState(false)
+  const [selectedCard, setSelectedCard] = useState<CardOut | null>(null)
 
 
   useEffect(() => {
@@ -166,6 +175,7 @@ export default function BatchDetail() {
           return (
             <div
               key={card.id}
+              onClick={() => setSelectedCard(card)}
               className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:border-[#e3350d] hover:-translate-y-0.5 transition-all cursor-pointer"
             >
               {/* Photo area with grade badge */}
@@ -211,6 +221,11 @@ export default function BatchDetail() {
           )
         })}
       </div>
+
+      {selectedCard && (
+        <CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
+      )}
+      
     </div>
   )
 }

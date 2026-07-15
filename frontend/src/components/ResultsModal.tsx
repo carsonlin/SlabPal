@@ -21,13 +21,10 @@ interface ResultEntry {
   graded_value: string   // "" = not entered
 }
 
-function handleSave(){
-    return
-}
-
 
 export default function ResultsModal({batchName, cards, onClose, onSaved}: ResultsModalProps){
-
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState<string | null>(null)
     const [entries, setEntries] = useState<Record<string, ResultEntry>>(() => {
     const initial: Record<string, ResultEntry> = {}
     for (const c of cards) {
@@ -38,6 +35,48 @@ export default function ResultsModal({batchName, cards, onClose, onSaved}: Resul
     }
     return initial
   })
+
+  const allFilled = cards.every(
+    (c) => entries[c.id].actual_grade !== "" && entries[c.id].graded_value !== ""
+  )
+
+  async function handleSave() {
+    if (!allFilled) {
+      setError("Please fill out all fields before saving")
+      setSaving(false)
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      for (const c of cards) {
+        const res = await fetch(`http://localhost:8000/cards/${c.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            actual_grade: Number(entries[c.id].actual_grade),
+            graded_value: entries[c.id].graded_value,
+          }),
+        })
+        if (!res.ok) throw new Error(`Failed (${res.status})`)
+      }
+      onSaved()
+      onClose()
+    } catch (err) {
+      setError("Couldn't save results. Please try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+    function updateEntry(cardId: string, field: keyof ResultEntry, value: string) {
+    setEntries((prev) => ({
+      ...prev,
+      [cardId]: { ...prev[cardId], [field]: value },
+    }))
+  }
+
+
 
   return (
   <div className= "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -57,7 +96,6 @@ export default function ResultsModal({batchName, cards, onClose, onSaved}: Resul
             <div key={card.id} className="flex items-center justify-between py-3.5 border-b border-gray-200 last:border-0 ">
                 {/* Left: thumbnail + name/subtext */}
                 <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-11 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex-shrink-0" />
                 <div className="min-w-0">
                     <div className="text-sm font-semibold truncate">{card.pokemon_name}</div>
                     <div className="text-xs text-[#8a8a95] truncate">{card.set_string} · target {card.target_grade}</div>
@@ -68,23 +106,39 @@ export default function ResultsModal({batchName, cards, onClose, onSaved}: Resul
                 <div className="flex gap-3 flex-shrink-0">
                 <div className="w-24">
                     <span className="block text-[10px] text-[#8a8a95] mb-1">Actual grade</span>
-                    <select className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#e3350d] focus:border-transparent">
-                    <option value="">—</option>
-                    {[10,9,8,7,6,5,4,3,2,1].map((g) => <option key={g} value={g}>{g}</option>)}
+                    <select
+                    value={entries[card.id].actual_grade}
+                    onChange={(e) => updateEntry(card.id, "actual_grade", e.target.value)}
+                    className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#e3350d] focus:border-transparent">
+                      <option value="">—</option>
+                      {[10,9,8,7,6,5,4,3,2,1].map((g) => <option key={g} value={g}>{g}</option>)}
                     </select>
                 </div>
                 <div className="w-28">
                     <span className="block text-[10px] text-[#8a8a95] mb-1">Graded value</span>
-                    <input type="number" placeholder="$0" className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#e3350d] focus:border-transparent" />
+                    <input type="number" 
+                    placeholder="$0" 
+                    value={entries[card.id].graded_value}
+                    onChange={(e) => updateEntry(card.id, "graded_value", e.target.value)}
+                    className="w-full px-2 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#e3350d] focus:border-transparent" />
                 </div>
                 </div>
             </div>
             ))}
         </div>
         <div className="px-6 py-4 flex justify-between items-center">
-            <div className="text-xs text-[#8a8a95]">Make sure to fill out fields for all cards</div>
-            <button className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#e3350d] text-white hover:bg-[#c62d0b] transition-all cursor-pointer"
-            onClick={handleSave}>Save Results</button>
+            <div className="text-xs text-[#8a8a95]">{error}</div>
+            <button
+              onClick={handleSave}
+              disabled={!allFilled || saving}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                allFilled && !saving
+                  ? "bg-[#e3350d] text-white hover:bg-[#c62d0b] cursor-pointer"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {saving ? "Saving..." : "Save results"}
+          </button>
         </div>
     </div>
   </div>

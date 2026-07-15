@@ -60,6 +60,8 @@ class Card(Base):
     back_photo_key: Mapped[str | None] = mapped_column(String(1024))
     batch: Mapped["Batch"] = relationship(back_populates="cards")
     issues: Mapped[list["CardIssue"]] = relationship(back_populates="card", cascade="all, delete-orphan")
+    issue_types: Mapped[list["IssueType"]] = relationship(secondary="card_issues", viewonly=True)
+
 
 
 class IssueType(Base):

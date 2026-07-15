@@ -61,7 +61,7 @@ def get_batches(limit: int | None = None, session: Session = Depends(get_session
 
 
 
-@app.post("/batches", response_model=BatchWithCardsCreate)
+@app.post("/batches", response_model=BatchDetailOut)
 def create_batch(data: BatchWithCardsCreate, session: Session = Depends(get_session)):
     # validate all submitted issue ids across every card, in ONE query
     valid_ids = {row.id for row in session.query(IssueType.id).all()}

@@ -355,10 +355,9 @@ export default function Submission() {
               No cards added yet — fill out a card above and click "Add card to batch".
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               {cards.map((card, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <div className="w-9 h-11 bg-gray-200 rounded flex-shrink-0" />
                     <div className="flex-1 text-sm">
                       <span className="font-semibold">{card.pokemon_name}</span>
                       <span className="text-gray-400"> · {card.set_string}</span>

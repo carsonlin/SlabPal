@@ -8,7 +8,6 @@ from typing import Annotated
 class IssueTypeOut(BaseModel):
     id: int
     label: str
-
     model_config = {"from_attributes": True}
 
 class BatchOut(BaseModel):
@@ -38,6 +37,7 @@ class CardOut(BaseModel):
     confidence: int
     front_photo_key: str | None
     back_photo_key: str | None
+    issue_types: list[IssueTypeOut] = []
     model_config = {"from_attributes": True}
 
 class CardCreate(BaseModel):
