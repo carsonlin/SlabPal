@@ -82,7 +82,11 @@ function buildInsights(points: CalibrationPoint[], issues: IssueOutcome[]) {
       body: `Cards you flagged for ${strongestIssue.issue_name.toLowerCase()} still hit target ${strongestIssue.hit_rate}% of the time — you read that flaw well.`,
     })
 
-    if (weakestIssue.issue_name !== strongestIssue.issue_name) {
+
+    if (
+      weakestIssue.issue_name !== strongestIssue.issue_name &&
+      weakestIssue.hit_rate < 65
+    ) {
       insights.push({
         type: "warn",
         title: `${weakestIssue.issue_name} is your weak read`,

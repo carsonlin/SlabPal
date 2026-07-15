@@ -18,6 +18,22 @@ export default function BatchDetail() {
   const [loading, setLoading] = useState(true)
   const [showResults, setShowResults] = useState(false)
   const [selectedCard, setSelectedCard] = useState<CardOut | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    setDeleting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`${API_BASE}/batches/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error(`Failed (${res.status})`)
+      navigate("/Batches")   // gone — back to the list
+    } catch {
+      setDeleteError("Couldn't delete this batch. Please try again.")
+      setDeleting(false)
+    }
+  }
 
 
   useEffect(() => {
@@ -65,11 +81,50 @@ export default function BatchDetail() {
           <div className="text-sm text-gray-400">Batches / {batch.name}</div>
           <div className="text-2xl font-bold">{batch.name}</div>
         </div>
-        <button className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#e3350d] text-white hover:bg-[#c62d0b] transition-all cursor-pointer"
-        onClick={() => setShowResults(true)}>
-          Enter results
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:border-red-500 hover:text-red-600 transition-all cursor-pointer"
+          onClick={() => setShowDeleteConfirm(true)}>
+            Delete batch
+          </button>
+          <button className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#e3350d] text-white hover:bg-[#c62d0b] transition-all cursor-pointer"
+          onClick={() => setShowResults(true)}>
+            Enter results
+          </button>
+        </div>
       </div>
+
+      {/* Delete confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+        onClick={() => !deleting && setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6"
+          onClick={(e) => e.stopPropagation()}>
+            <div className="text-lg font-bold mb-1">Delete this batch?</div>
+            <div className="text-sm text-gray-500 mb-5">
+              <span className="font-semibold text-gray-700">{batch.name}</span> and its{" "}
+              {batch.card_count} card{batch.card_count === 1 ? "" : "s"} will be permanently deleted.
+              This can't be undone.
+            </div>
+            {deleteError && <div className="text-xs text-red-600 mb-3">{deleteError}</div>}
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 hover:bg-gray-50 transition-all cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showResults && (
         <ResultsModal
